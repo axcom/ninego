@@ -145,7 +145,7 @@ func Println(v ...interface{}) {
 		fmt.Println(tv...)
 		_, ok := (globalog.logger).(*ConsoleLogger)
 		if !ok {
-			globalog.logger.Info(fmt.Sprint(tv[0]), tv[1:]...)
+			globalog.logger.Info(fmt.Sprint(v[0]), v[1:]...)
 		}
 	} else {
 		fmt.Println(time.Now().Format(TimeFormat), fmt.Sprint(v[0]))

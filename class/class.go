@@ -486,15 +486,6 @@ func Create[T IClass](obj T, args...interface{}) T {
 }	
 // ------------------------------ 辅助函数及方法 ---------------------------------
 
-// getMethodNames 提取方法名（调试用）
-func getMethodNames(miMap map[string]MethodInfo) []string {
-	names := make([]string, 0, len(miMap))
-	for name := range miMap {
-		names = append(names, name)
-	}
-	return names
-}
-
 // GetCallerFuncName 获取调用者函数名
 func GetCallerFuncName(skip int) string {
 	pc, _, _, ok := runtime.Caller(skip + 1)

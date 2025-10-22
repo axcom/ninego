@@ -5,9 +5,9 @@ import (
 	//"reflect"
 	"time"
 
-	"ninego/log/logger"
-	"ninego/log/logger/example/filelogger"
-	"ninego/log/logger/example/zap"
+	logger "ninego/log"
+	"ninego/log/example/filelogger"
+	"ninego/log/example/zap"
 )
 
 type TxtFormat struct {

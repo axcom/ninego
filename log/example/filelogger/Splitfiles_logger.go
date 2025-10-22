@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"ninego/log/filelog"
-	. "ninego/log/logger"
+	"ninego/filelog"
+	. "ninego/log"
 )
 
 var _ LoggerInterface = (*SplitFilesLogger)(nil)
@@ -75,6 +75,11 @@ func (c *SplitFilesLogger) Error(message string, v ...interface{}) {
 	c.Log(filelog.ERROR, message, v...)
 }
 
+// Panic 输出错误级别日志
+func (c *SplitFilesLogger) Panic(message string, v ...interface{}) {
+	c.Log(filelog.PANIC, message, v...)
+}
+
 // Fatal 输出致命级别日志并退出
 func (c *SplitFilesLogger) Fatal(message string, v ...interface{}) {
 	c.Log(filelog.FATAL, message, v...)
@@ -97,6 +102,8 @@ func (c *SplitFilesLogger) Log(level filelog.LEVEL, message string, fields ...in
 		c.logger.Warn(message, v...)
 	case filelog.ERROR:
 		c.logger.Error(message, v...)
+	case filelog.PANIC:
+		c.logger.Panic(message, v...)
 	case filelog.FATAL:
 		c.logger.Fatal(message, v...)
 	default:

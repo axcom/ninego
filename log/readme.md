@@ -3,7 +3,7 @@
 
 提供`Print/Printf/Println`等类似标准库的函数，方便调试使用，同时支持全局日志对象和独立日志实例。支持日志字段（Fields），满足基础日志需求。
 
-实现了常见的日志级别（Debug/Info/Warn/Error/Fatal），通过`LoggerInterface`定义了统一的日志接口规范，支持自定义实现（如控制台日志、文件日志等），具备良好的扩展性。
+实现了常见的日志级别（Debug/Info/Warn/Error/Panic/Fatal），通过`LoggerInterface`定义了统一的日志接口规范，支持自定义实现（如控制台日志、文件日志等），具备良好的扩展性。
 
 默认提供了ConsoleLogger控制台日志器，具有抽象日志格式化接口（`Formatter`），输出格式灵活，支持自定义格式（如JSON、文本）。
 可根据需要进一步实现`FileLogger`、`Zap`、`logrus`等具体日志器，只需实现`LoggerInterface`接口即可替换控制台日志接入系统。
@@ -29,6 +29,9 @@ type LoggerInterface interface {
 	// 错误级别日志
 	Error(message string, v ...interface{})
 
+	// 致命级别日志，输出后会触发异常
+	Panic(message string, v ...interface{})
+
 	// 致命级别日志，输出后会退出程序
 	Fatal(message string, v ...interface{})
 
@@ -45,6 +48,7 @@ func Debug(msg string, v ...interface{})
 func Info(msg string, v ...interface{}) 
 func Warn(msg string, v ...interface{}) 
 func Error(msg string, v ...interface{})
+func Panic(msg string, v ...interface{})
 func Fatal(msg string, v ...interface{})
 
 //控制台输出，同时记录为Info日志（当作log使用）

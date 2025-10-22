@@ -2,7 +2,7 @@ package zap
 
 import (
 	"fmt"
-	. "ninego/log/logger"
+	. "ninego/log"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -61,6 +61,7 @@ func levelToZapLevel(level Level) zapcore.Level {
 		LevelInfo:  zapcore.InfoLevel,
 		LevelWarn:  zapcore.WarnLevel,
 		LevelError: zapcore.ErrorLevel,
+		LevelPanic: zapcore.PanicLevel,
 		LevelFatal: zapcore.FatalLevel,
 	}
 	if zapLevel, ok := levelMap[level]; ok {
@@ -83,6 +84,10 @@ func (l *ZapSugaredLogger) Warn(msg string, v ...interface{}) {
 
 func (l *ZapSugaredLogger) Error(msg string, v ...interface{}) {
 	l.logger.Errorw(msg, ArgsToKeyValues(v...)...)
+}
+
+func (l *ZapSugaredLogger) Panic(msg string, v ...interface{}) {
+	l.logger.Panicw(msg, ArgsToKeyValues(v...)...)
 }
 
 func (l *ZapSugaredLogger) Fatal(msg string, v ...interface{}) {

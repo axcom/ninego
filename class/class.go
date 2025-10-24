@@ -531,6 +531,11 @@ func getTypeNameFromFunc(fnName string) string {
 
 // -------------------------- 继承类中使用的函数及方法 -----------------------------
 
+// 用于标记需要展开的可变参数（任意切片类型）
+type Variadic struct {
+    Value interface{} // 存储需要展开的切片（任意类型）
+}
+
 func _Call_(method *reflect.Value, args ...interface{}) []reflect.Value {
 	// 构造参数并调用方法
 	in := make([]reflect.Value, len(args))
@@ -564,18 +569,42 @@ func (o *Object) Inherited(args ...interface{}) (result []reflect.Value, handled
 	}
 
 	// 构造参数并调用方法
-	return _Call_(&mi[0].Value,args...), true
-	/*in := make([]reflect.Value, len(args))
-	for i, arg := range args {
-		in[i] = reflect.ValueOf(arg)
-	}
-	return mi.Value.Call(in), true*/
+    finalArgs := make([]interface{}, 0)
+    for _, arg := range args {
+        // 检查当前参数是否为 Variadic 标记的可变参数
+        if v, ok := arg.(Variadic); ok {
+            // 用反射检测 Value 是否为切片
+            val := reflect.ValueOf(v.Value)
+            if val.Kind() == reflect.Slice {
+                // 遍历切片元素，逐个添加到最终参数列表
+                for i := 0; i < val.Len(); i++ {
+                    finalArgs = append(finalArgs, val.Index(i).Interface())
+                }
+            } else {
+                // 不是切片，按单个参数处理
+                finalArgs = append(finalArgs, v.Value)
+            }
+        } else {
+            // 非 Variadic 类型，直接作为单个参数
+            finalArgs = append(finalArgs, arg)
+        }
+    }
+    return _Call_(&mi[0].Value,finalArgs...), true
 }
 
 // Super 返回父类调用方法 - 可自动获取调用者函数名，支持obj.Super()(参数...)的调用方式
 func (o *Object) Super(name ...string) func(...interface{}) ([]reflect.Value, bool) {
 	// 获取调用者的函数名
     callerMethodName := GetCallerMethodName(1)
+fmt.Println(callerMethodName)    
+pc, _, _, ok := runtime.Caller(1)
+if !ok {
+    panic("无法获取调用栈")
+}
+// 解析调用者函数名（格式类似 "package.InheritedObject1.Dec"）
+funcName := runtime.FuncForPC(pc).Name()
+fmt.Println("caller:",funcName)
+    
 	if len(name)>0 && name[0]!="" {
   		callerMethodName = name[0]
 	}
@@ -593,15 +622,31 @@ func (o *Object) Super(name ...string) func(...interface{}) ([]reflect.Value, bo
 		// 在方法链中查找当前类的位置，然后调用下一个方法（父类方法）
 		for i, methodInfo:= range methodChain {
 			methodTypeName := getTypeNameFromFunc(methodInfo.RecvType.String())
+fmt.Println("-<<<",methodTypeName,callerTypeName,callerMethodName)
 			if methodTypeName!=callerTypeName { continue }
 			if i<len(methodChain)-1 {
 				// 准备参数并调用父方法
-				return _Call_(&methodChain[i+1].Value, args...), true
-				/*in := make([]reflect.Value, len(args))
-				for i, arg := range args {
-					in[i] = reflect.ValueOf(arg)
-				}
-				return methodChain[i+1].Value.Call(in), true*/
+		        finalArgs := make([]interface{}, 0)// 处理参数：自动展开切片
+		        for _, arg := range args {
+			       // 检查当前参数是否为 Variadic 标记的可变参数
+			        if v, ok := arg.(Variadic); ok {
+			            // 用反射检测 Value 是否为切片
+			            val := reflect.ValueOf(v.Value)
+			            if val.Kind() == reflect.Slice {
+			                // 遍历切片元素，逐个添加到最终参数列表
+			                for i := 0; i < val.Len(); i++ {
+			                    finalArgs = append(finalArgs, val.Index(i).Interface())
+			                }
+			            } else {
+			                // 不是切片，按单个参数处理
+			                finalArgs = append(finalArgs, v.Value)
+			            }
+			        } else {
+			            // 非 Variadic 类型，直接作为单个参数
+			            finalArgs = append(finalArgs, arg)
+			        }
+		        }
+				return _Call_(&methodChain[i+1].Value, finalArgs...), true
 			}
 		}
 		

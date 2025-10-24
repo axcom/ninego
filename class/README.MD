@@ -55,6 +55,7 @@ if ret, handled := obj.Inherited(参数...); handled {
 }
 ```
 ​	该方法返回调用结果[]ret及handled标识，只有在handled为true的情况下，调用结果才不为nil。
+	如果参数是变参时，须用`class.Variadic{变参名称}`包裹变参变量。
 ​	返回的调用结果中，若有可能有为nil的结果值，需用class的**SafeConvert->安全转换函数**进行转换后使用: `class.SC[值类型](返回值[i]))`
 
 **特别提醒：**
@@ -70,6 +71,9 @@ if ret, ok := obj.Super("方法名称")(参数...); ok { ... }
 	1."方法名称"参数可省略，为空即自动赋为当前函数名称。若"方法名称"在父结构体中不存在，ok返回false,ret=nil。
 	2.该方法相当于调用“父结构名称.方法名称(...)”，且不会因为父方法中有Inherited而执行到子类代码。
 	3.注意该方法返回的是个func，执行这个fcunc()后的结果处理同Inherited方法。若找不到合适的父类方法，ok返回false,ret=nil。
+
+**注意：**
+	**Inherited() 与 Super()() 方法只能在结构体内使用! 且调用者只能是当前结构体！**
 
 ### 使用示例：
 

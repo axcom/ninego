@@ -596,15 +596,6 @@ func (o *Object) Inherited(args ...interface{}) (result []reflect.Value, handled
 func (o *Object) Super(name ...string) func(...interface{}) ([]reflect.Value, bool) {
 	// 获取调用者的函数名
     callerMethodName := GetCallerMethodName(1)
-fmt.Println(callerMethodName)    
-pc, _, _, ok := runtime.Caller(1)
-if !ok {
-    panic("无法获取调用栈")
-}
-// 解析调用者函数名（格式类似 "package.InheritedObject1.Dec"）
-funcName := runtime.FuncForPC(pc).Name()
-fmt.Println("caller:",funcName)
-    
 	if len(name)>0 && name[0]!="" {
   		callerMethodName = name[0]
 	}
@@ -622,7 +613,6 @@ fmt.Println("caller:",funcName)
 		// 在方法链中查找当前类的位置，然后调用下一个方法（父类方法）
 		for i, methodInfo:= range methodChain {
 			methodTypeName := getTypeNameFromFunc(methodInfo.RecvType.String())
-fmt.Println("-<<<",methodTypeName,callerTypeName,callerMethodName)
 			if methodTypeName!=callerTypeName { continue }
 			if i<len(methodChain)-1 {
 				// 准备参数并调用父方法

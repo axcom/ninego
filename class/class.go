@@ -538,10 +538,26 @@ type Variadic struct {
 
 func _Call_(method *reflect.Value, args ...interface{}) []reflect.Value {
 	// 构造参数并调用方法
-	in := make([]reflect.Value, len(args))
-	for i, arg := range args {
-		in[i] = reflect.ValueOf(arg)
-	}
+    in := make([]reflect.Value, 0, len(args)) // 预分配至少原长度的空间
+    // 检查当前参数是否为 Variadic 标记的可变参数
+    for _, arg := range args {
+        if v, ok := arg.(Variadic); ok {
+            // 处理可变参数标记的元素, 用反射检测 Value 是否为切片
+            val := reflect.ValueOf(v.Value)
+            if val.Kind() == reflect.Slice {
+                // 切片类型：直接展开所有元素
+                for i := 0; i < val.Len(); i++ {
+                    in = append(in, val.Index(i))
+                }
+            } else {
+                // 非切片：作为单个值处理
+                in = append(in, val)
+            }
+        } else {
+            // 普通参数：直接转换为reflect.Value
+            in = append(in, reflect.ValueOf(arg))
+        }
+    }
 	return method.Call(in)
 }
 
@@ -569,27 +585,7 @@ func (o *Object) Inherited(args ...interface{}) (result []reflect.Value, handled
 	}
 
 	// 构造参数并调用方法
-    finalArgs := make([]interface{}, 0)
-    for _, arg := range args {
-        // 检查当前参数是否为 Variadic 标记的可变参数
-        if v, ok := arg.(Variadic); ok {
-            // 用反射检测 Value 是否为切片
-            val := reflect.ValueOf(v.Value)
-            if val.Kind() == reflect.Slice {
-                // 遍历切片元素，逐个添加到最终参数列表
-                for i := 0; i < val.Len(); i++ {
-                    finalArgs = append(finalArgs, val.Index(i).Interface())
-                }
-            } else {
-                // 不是切片，按单个参数处理
-                finalArgs = append(finalArgs, v.Value)
-            }
-        } else {
-            // 非 Variadic 类型，直接作为单个参数
-            finalArgs = append(finalArgs, arg)
-        }
-    }
-    return _Call_(&mi[0].Value,finalArgs...), true
+    return _Call_(&mi[0].Value, args...), true
 }
 
 // Super 返回父类调用方法 - 可自动获取调用者函数名，支持obj.Super()(参数...)的调用方式
@@ -616,27 +612,7 @@ func (o *Object) Super(name ...string) func(...interface{}) ([]reflect.Value, bo
 			if methodTypeName!=callerTypeName { continue }
 			if i<len(methodChain)-1 {
 				// 准备参数并调用父方法
-		        finalArgs := make([]interface{}, 0)// 处理参数：自动展开切片
-		        for _, arg := range args {
-			       // 检查当前参数是否为 Variadic 标记的可变参数
-			        if v, ok := arg.(Variadic); ok {
-			            // 用反射检测 Value 是否为切片
-			            val := reflect.ValueOf(v.Value)
-			            if val.Kind() == reflect.Slice {
-			                // 遍历切片元素，逐个添加到最终参数列表
-			                for i := 0; i < val.Len(); i++ {
-			                    finalArgs = append(finalArgs, val.Index(i).Interface())
-			                }
-			            } else {
-			                // 不是切片，按单个参数处理
-			                finalArgs = append(finalArgs, v.Value)
-			            }
-			        } else {
-			            // 非 Variadic 类型，直接作为单个参数
-			            finalArgs = append(finalArgs, arg)
-			        }
-		        }
-				return _Call_(&methodChain[i+1].Value, finalArgs...), true
+				return _Call_(&methodChain[i+1].Value, args...), true
 			}
 		}
 		

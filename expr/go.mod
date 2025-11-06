@@ -1,4 +1,4 @@
-module calss.go
+module expr
 
 go 1.18.0
 

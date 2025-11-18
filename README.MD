@@ -18,3 +18,12 @@
 	
 - pinyin
 	一组汉字首拼处理函数(也包括五笔首码)
+
+- dataset
+	将sql.Rows的record数据转换为DataSet数据集struct(相当于**"内存表"**)
+
+- skit
+	手搓&收集整理来的一些常用函数
+
+- syscl
+	常用数据结构方法合集List, Strings, StringList, Buffer, TreeNode... 

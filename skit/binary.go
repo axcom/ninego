@@ -1,0 +1,275 @@
+package skit
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"math"
+)
+
+// LeEncode encodes one or multiple <values> into bytes using LittleEndian.
+// It uses type asserting checking the type of each value of <values> and internally
+// calls corresponding converting function do the bytes converting.
+//
+// It supports common variable type asserting, and finally it uses fmt.Sprintf converting
+// value to string and then to bytes.
+func Encode(values ...interface{}) []byte {
+	buf := new(bytes.Buffer)
+	for i := 0; i < len(values); i++ {
+		if values[i] == nil {
+			return buf.Bytes()
+		}
+
+		switch value := values[i].(type) {
+		case int:
+			buf.Write(EncodeInt(value))
+		case int8:
+			buf.Write(EncodeInt8(value))
+		case int16:
+			buf.Write(EncodeInt16(value))
+		case int32:
+			buf.Write(EncodeInt32(value))
+		case int64:
+			buf.Write(EncodeInt64(value))
+		case uint:
+			buf.Write(EncodeUint(value))
+		case uint8:
+			buf.Write(EncodeUint8(value))
+		case uint16:
+			buf.Write(EncodeUint16(value))
+		case uint32:
+			buf.Write(EncodeUint32(value))
+		case uint64:
+			buf.Write(EncodeUint64(value))
+		case bool:
+			buf.Write(EncodeBool(value))
+		case string:
+			buf.Write(EncodeString(value))
+		case []byte:
+			buf.Write(value)
+		case float32:
+			buf.Write(EncodeFloat32(value))
+		case float64:
+			buf.Write(EncodeFloat64(value))
+		default:
+			if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+				buf.Write(EncodeString(fmt.Sprintf("%v", value)))
+			}
+		}
+	}
+	return buf.Bytes()
+}
+
+// 将变量转换为二进制[]byte，并指定固定的[]byte长度返回，长度单位为字节(byte)；
+// 如果转换的二进制长度超过指定长度，那么进行截断处理
+func EncodeByLength(length int, values ...interface{}) []byte {
+	b := Encode(values...)
+	if len(b) < length {
+		b = append(b, make([]byte, length-len(b))...)
+	} else if len(b) > length {
+		b = b[0:length]
+	}
+	return b
+}
+
+// 整形二进制解包，注意第二个及其后参数为字长确定的整形变量的指针地址，以便确定解析的[]byte长度，
+// 例如：int8/16/32/64、uint8/16/32/64、float32/64等等
+func Decode(b []byte, values ...interface{}) error {
+	buf := bytes.NewBuffer(b)
+	for i := 0; i < len(values); i++ {
+		err := binary.Read(buf, binary.LittleEndian, values[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func EncodeString(s string) []byte {
+	return []byte(s)
+}
+
+func DecodeToString(b []byte) string {
+	return string(b)
+}
+
+func EncodeBool(b bool) []byte {
+	if b == true {
+		return []byte{1}
+	} else {
+		return []byte{0}
+	}
+}
+
+// 自动识别int类型长度，转换为[]byte
+func EncodeInt(i int) []byte {
+	if i <= math.MaxInt8 {
+		return EncodeInt8(int8(i))
+	} else if i <= math.MaxInt16 {
+		return EncodeInt16(int16(i))
+	} else if i <= math.MaxInt32 {
+		return EncodeInt32(int32(i))
+	} else {
+		return EncodeInt64(int64(i))
+	}
+}
+
+// 自动识别uint类型长度，转换为[]byte
+func EncodeUint(i uint) []byte {
+	if i <= math.MaxUint8 {
+		return EncodeUint8(uint8(i))
+	} else if i <= math.MaxUint16 {
+		return EncodeUint16(uint16(i))
+	} else if i <= math.MaxUint32 {
+		return EncodeUint32(uint32(i))
+	} else {
+		return EncodeUint64(uint64(i))
+	}
+}
+
+func EncodeInt8(i int8) []byte {
+	return []byte{byte(i)}
+}
+
+func EncodeUint8(i uint8) []byte {
+	return []byte{i}
+}
+
+func EncodeInt16(i int16) []byte {
+	b := make([]byte, 2)
+	binary.LittleEndian.PutUint16(b, uint16(i))
+	return b
+}
+
+func EncodeUint16(i uint16) []byte {
+	b := make([]byte, 2)
+	binary.LittleEndian.PutUint16(b, i)
+	return b
+}
+
+func EncodeInt32(i int32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, uint32(i))
+	return b
+}
+
+func EncodeUint32(i uint32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, i)
+	return b
+}
+
+func EncodeInt64(i int64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(i))
+	return b
+}
+
+func EncodeUint64(i uint64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, i)
+	return b
+}
+
+func EncodeFloat32(f float32) []byte {
+	bits := math.Float32bits(f)
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, bits)
+	return b
+}
+
+func EncodeFloat64(f float64) []byte {
+	bits := math.Float64bits(f)
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, bits)
+	return b
+}
+
+// 将二进制解析为int类型，根据[]byte的长度进行自动转换.
+// 注意内部使用的是uint*，使用int会造成位丢失。
+func DecodeToInt(b []byte) int {
+	if len(b) < 2 {
+		return int(DecodeToUint8(b))
+	} else if len(b) < 3 {
+		return int(DecodeToUint16(b))
+	} else if len(b) < 5 {
+		return int(DecodeToUint32(b))
+	} else {
+		return int(DecodeToUint64(b))
+	}
+}
+
+// 将二进制解析为uint类型，根据[]byte的长度进行自动转换
+func DecodeToUint(b []byte) uint {
+	if len(b) < 2 {
+		return uint(DecodeToUint8(b))
+	} else if len(b) < 3 {
+		return uint(DecodeToUint16(b))
+	} else if len(b) < 5 {
+		return uint(DecodeToUint32(b))
+	} else {
+		return uint(DecodeToUint64(b))
+	}
+}
+
+// 将二进制解析为bool类型，识别标准是判断二进制中数值是否都为0，或者为空。
+func DecodeToBool(b []byte) bool {
+	if len(b) == 0 {
+		return false
+	}
+	if bytes.Compare(b, make([]byte, len(b))) == 0 {
+		return false
+	}
+	return true
+}
+
+func DecodeToInt8(b []byte) int8 {
+	return int8(b[0])
+}
+
+func DecodeToUint8(b []byte) uint8 {
+	return uint8(b[0])
+}
+
+func DecodeToInt16(b []byte) int16 {
+	return int16(binary.LittleEndian.Uint16(FillUpSize(b, 2)))
+}
+
+func DecodeToUint16(b []byte) uint16 {
+	return binary.LittleEndian.Uint16(FillUpSize(b, 2))
+}
+
+func DecodeToInt32(b []byte) int32 {
+	return int32(binary.LittleEndian.Uint32(FillUpSize(b, 4)))
+}
+
+func DecodeToUint32(b []byte) uint32 {
+	return binary.LittleEndian.Uint32(FillUpSize(b, 4))
+}
+
+func DecodeToInt64(b []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(FillUpSize(b, 8)))
+}
+
+func DecodeToUint64(b []byte) uint64 {
+	return binary.LittleEndian.Uint64(FillUpSize(b, 8))
+}
+
+func DecodeToFloat32(b []byte) float32 {
+	return math.Float32frombits(binary.LittleEndian.Uint32(FillUpSize(b, 4)))
+}
+
+func DecodeToFloat64(b []byte) float64 {
+	return math.Float64frombits(binary.LittleEndian.Uint64(FillUpSize(b, 8)))
+}
+
+// 当b位数不够时，进行高位补0。
+// 注意这里为了不影响原有输入参数，是采用的值复制设计。
+func FillUpSize(b []byte, l int) []byte {
+	if len(b) >= l {
+		return b[:l]
+	}
+	c := make([]byte, l)
+	copy(c, b)
+	return c
+}

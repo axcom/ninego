@@ -9,7 +9,7 @@ import (
 
 // IClass 核心接口：包含初始化方法（interfaces多个接口指针参数）
 type IClass interface {
-	_Init_(self, parent IClass, interfaces ...interface{})
+	Init_(self, parent IClass, interfaces ...interface{})
 }
 
 // Object 业务基类（实现IClass）
@@ -25,7 +25,7 @@ type MethodInfo struct {
 }
 
 // ------------------------------ 核心：Init方法（根据iface过滤方法） ------------------------------
-func (o *Object) _Init_(self, parent IClass, interfaces ...interface{}) {
+func (o *Object) Init_(self, parent IClass, interfaces ...interface{}) {
     // 在 Go 中，当你嵌入匿名结构体时：Object 字段会被自动创建（零值），但是它的内部状态（比如 self、methods）是零值，需要手动初始化。
 	o.self = self
 	o.methods = make(map[string][]MethodInfo)
@@ -362,7 +362,7 @@ func New[T IClass](interfaces ...interface{}) T {
 
 	// 4. 调用Init初始化（传递iface参数）
 	obj := objVal.Interface().(T)
-	obj._Init_(obj, parentObj, interfaces...)
+	obj.Init_(obj, parentObj, interfaces...)
 
 	return obj
 }
@@ -411,7 +411,7 @@ func Extends[T IClass](parentField string, interfaces ...interface{}) T {
 	Obj := objVal.Interface()
 	// 再 Init
 	if c, ok := Obj.(IClass); ok {
-		c._Init_(c, parentObj, interfaces...)
+		c.Init_(c, parentObj, interfaces...)
 	}
 	return Obj.(T)
 }
@@ -481,7 +481,7 @@ func Create[T IClass](obj T, args...interface{}) T {
     }
     
     // 3. 执行Init方法完成初始化
-    obj._Init_(obj, parentObj, interfaces...)
+    obj.Init_(obj, parentObj, interfaces...)
     return obj	
 }	
 // ------------------------------ 辅助函数及方法 ---------------------------------

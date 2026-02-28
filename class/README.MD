@@ -12,10 +12,13 @@ func(o *MyObject)Add(a,b int) int,error {
     if ret, handled := o.Inherited(a, b1); handled {
         return class.SC[int](ret[0]), class.SC[error](ret[1])
 	}
+	//以上的每个继承方法都要写的代码
     //以下是本结构体的处理代码
     
     //调用父类代码
-	ret, ok := o.Super()(a,b)
+	if ret, ok := o.Super()(a,b); ok {
+		//得到父类结果ret[]
+	}
 	// 本结构体的扩展代码
 	......
 }
@@ -39,9 +42,9 @@ func(o *MyObject)Add(a,b int) int,error {
 **注意：**
 
 ```
-	1. 请尽量使用接口指针来指定你的继承方法，如：`(*ICommon)(nil)` 或 `new(ICommon)` 。(若结构体不支持指定的接口，则会panic。)
+	1. 可使用接口指针来指定你的继承方法，如：`(*ICommon)(nil)` 或 `new(ICommon)` 。(若结构体不支持指定的接口，则会panic。)
     2. 在没有指定“接口指针”参数的情况下(传入为非指针nil)，若子类与父类有同名的方法，但参数不一致，那该方法/函数不能被继承使用。
-    3. Create、New方法中省略"父结构体Field名称"参数，在创建该Class对象时，先通过 `class:"parent"` tag标识查找父结构体，没找到的话还会再查找首个匿名嵌入的基于Object的结构体。(若没找到有父类，则会panic。)
+    3. Create、New方法中省略"父结构体Field名称"参数，在创建该Class对象时，先通过 `class:"parent"` 这个tag标识查找父结构体，没找到的话还会再查找首个匿名嵌入的基于Object的结构体。(若没找到有父类，则会panic。)
     4. 每个结构体只能实现继承1个父类，未指定父结构名称时父类优先匹配第1个匿名嵌入的基于Object的类。子类结构体可以指定实现多个接口。
     5. 若将原来结构体单元的NewXXX(args...)函数返回修改成使用以上的创建对象方法，如结构体有嵌套的NewXXX引用，_init_可能会被执行多次（但最终结果还是没问题的）。
 ```
@@ -74,94 +77,319 @@ if ret, ok := obj.Super("方法名称")(参数...); ok { ... }
 	2.该方法相当于调用“父结构名称.方法名称(...)”，且不会因为父方法中有Inherited而执行到子类代码。
 	3.注意该方法返回的是个func，执行这个fcunc()后的结果处理同Inherited方法。若找不到合适的父类方法，ok返回false,ret=nil。
 
+**特别提醒：**
+	**Super()(...)调用请务必只写在继承后的struct的代码中执行!!!（在struct以外调用无效!）**
+
 ## 总结：
 	** Inherited() 与 Super()() 方法只能在结构体内使用! 且调用者只能是当前结构体！ **
 	** Inherited(...) 必须写在func内的第1行 **
 	** Super() 返回的是父结构体的当前func方法，不要忘记传参并执行Super()(...) **
 	** 调用时,变参入参用`class.Variadic{变参名称}`包裹。返回值用`class.SC[值类型](返回值[i]))`转换。 **
+	** 好处：不用接口，也能实现继承调用。代价：每方法都要Inherited(),只能使用Super()调用上级方法**
 
 ### 使用示例：
 
 ```go
-// ICommon 业务接口
-type ICommon interface {
-    Add(a, b int) (int, error)
-	Dec()
+package main
+
+import (
+	"fmt"
+	"ninego/class"
+)
+
+// ----------------------------- 接口定义 -----------------------------
+
+// IEmployee 员工接口，定义员工的基本行为
+type IEmployee interface {
+	Work() string       // 员工工作内容
+	GetSalary() float64 // 获取员工薪资
+	GetName() string    // 获取员工姓名
 }
 
-// BaseObject 业务基类
-type BaseObject struct {
-	Object
+// IManager 经理接口，定义经理的特殊行为
+type IManager interface {
+	Manage() string   // 经理管理职责
+	GetTeamSize() int // 获取团队规模
 }
 
-// ICommon 接口实现（转发版本）
-func (b *BaseObject) Add(a, b1 int) int,error {
-	ret, handled := b.Inherited(a, b1)
-	if handled {
-        return class.SC[int](ret[0]), class.SC[error](ret[1])
+// ----------------------------- 基类定义 -----------------------------
+
+// Employee 员工基类，实现IEmployee接口
+type Employee struct {
+	class.Object         // 嵌入Object实现继承机制
+	Name         string  // 员工姓名
+	Salary       float64 // 员工薪资
+}
+
+func NewEmployee(salary float64) *Employee {
+	return &Employee{Salary: salary}
+}
+
+// Work 实现IEmployee接口的Work方法
+func (e *Employee) Work() string {
+	// 先调用Inherited实现继承
+	if ret, handled := e.Inherited(); handled {
+		return class.SC[string](ret[0])
 	}
-	fmt.Printf("[%T] 执行 BaseAdd(%d, %d)\n", b, a, b1)
-	b.Dec() // 这里可实现多态!!!
-	return a + b1
+	return fmt.Sprintf("%s is working", e.Name)
 }
 
-func (b *BaseObject) Dec() {
-	_, handled := b.Inherited()
-	if handled {
-		return
+// GetSalary 实现IEmployee接口的GetSalary方法
+func (e *Employee) GetSalary() float64 {
+	// 先调用Inherited实现继承
+	if ret, handled := e.Inherited(); handled {
+		return class.SC[float64](ret[0])
+	}
+	return e.Salary
+}
+
+// GetName 实现IEmployee接口的GetName方法
+func (e *Employee) GetName() string {
+	// 先调用Inherited实现继承
+	if ret, handled := e.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	return e.Name
+}
+
+func (e *Employee) Manage() string {
+	// 先调用Inherited实现继承
+	if ret, handled := e.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	return "base work"
+}
+
+// ----------------------------- 子类定义 -----------------------------
+
+// Developer 开发人员类，继承自Employee，实现IEmployee接口
+type Developer struct {
+	Employee               // 嵌入Employee实现继承
+	ProgrammingLang string // 编程语言
+}
+
+func NewDeveloper(salary float64) *Developer {
+	return &Developer{Employee: *NewEmployee(salary)}
+}
+
+// Work 重写父类的Work方法，实现多态
+func (d *Developer) Work() string {
+	// 先调用Inherited实现多态
+	if ret, handled := d.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	return fmt.Sprintf("%s is coding in %s", d.Name, d.ProgrammingLang)
+}
+
+// GetSalary 重写父类的GetSalary方法，实现多态
+func (d *Developer) GetSalary() float64 {
+	// 先调用Inherited实现多态
+	if ret, handled := d.Inherited(); handled {
+		return class.SC[float64](ret[0])
+	}
+	// 开发人员薪资比基础薪资高20%
+	baseSalary := d.Salary
+	return baseSalary * 1.2
+}
+
+// ----------------------------- 经理类定义 -----------------------------
+
+// Manager 经理类，继承自Employee，实现IEmployee和IManager接口
+type Manager struct {
+	Employee     // 嵌入Employee实现继承
+	TeamSize int // 团队规模
+}
+
+// Work 重写父类的Work方法，实现多态
+func (m *Manager) Work() string {
+	// 先调用Inherited实现多态
+	if ret, handled := m.Inherited(); handled {
+		return class.SC[string](ret[0])
 	}
 
-	fmt.Printf("[%T] 执行 Dec()\n", b)
+	s := ""
+	if ret, ok := m.Super()(); ok {
+		s = class.SC[string](ret[0])
+	}
+	/*注意：
+	s = m.Employee.Work() --> fatal error: stack overflow
+	使用了 Inherited() 之后，就不能直接像上一样调用父类的方法了。只能通过 Supper()()来调用！
+	否则会发生循环调用直至最后堆栈溢出！
+	*/
+	return s + " ++ " + fmt.Sprintf("%s is managing the team", m.Name)
 }
 
-// 子类1
-type InheritedObject1 struct {
-	BaseObject
+// GetSalary 重写父类的GetSalary方法，实现多态
+func (m *Manager) GetSalary() float64 {
+	// 先调用Inherited实现多态
+	if ret, handled := m.Inherited(); handled {
+		return class.SC[float64](ret[0])
+	}
+	// 经理薪资比基础薪资高50%
+	return m.Salary * 1.5
 }
 
-/*func (i *InheritedObject1) Add(a, bi int) int {
-	fmt.Printf("[%T] 执行 Add(%d, %d)\n", i, a, bi)
-	return a + bi
-}*/
-
-func (i *InheritedObject1) Dec() {
-	fmt.Printf("[%T] 执行 1-Dec()\n", i)
-    i.Super()() // 调用父类方法
+// Manage 实现IManager接口的Manage方法
+func (m *Manager) Manage() string {
+	// 先调用Inherited实现多态
+	if ret, handled := m.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	s := ""
+	if ret, ok := m.Super()(); ok {
+		s = class.SC[string](ret[0])
+	}
+	/*注意：
+	s = m.Employee.Manage() --> fatal error: stack overflow
+	使用了 Inherited() 之后，就不能直接像上一样调用父类的方法了。只能通过 Supper()()来调用！
+	否则会发生循环调用直至最后堆栈溢出！
+	*/
+	return s + " && " + fmt.Sprintf("%s is managing a team of %d people", m.Name, m.TeamSize)
 }
 
-// 子类2
-type InheritedObject2 struct {
-	InheritedObject1
-    Field1 int
+// GetTeamSize 实现IManager接口的GetTeamSize方法
+func (m *Manager) GetTeamSize() int {
+	// 先调用Inherited实现多态
+	if ret, handled := m.Inherited(); handled {
+		return class.SC[int](ret[0])
+	}
+	return m.TeamSize
 }
 
-func (i *InheritedObject2) Dec() {
-	fmt.Printf("[%T] 执行 2-Dec 开始\n", i)
-	// 直接调用父类方法
-    i.Super("Dec")()
-	// 当前方法
-	fmt.Printf("[%T] 执行 2-Dec 结束\n", i)
+// ----------------------------- 高级经理类定义 -----------------------------
+
+// SeniorManager 高级经理类，继承自Manager，实现IEmployee和IManager接口
+type SeniorManager struct {
+	Manager           // 嵌入Manager实现继承
+	Department string // 部门名称
+}
+
+// Work 重写父类的Work方法，实现多态
+func (sm *SeniorManager) Work() string {
+	// 先调用Inherited实现多态
+	if ret, handled := sm.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	return fmt.Sprintf("%s is managing the %s department", sm.Name, sm.Department)
+}
+
+// GetSalary 重写父类的GetSalary方法，实现多态
+func (sm *SeniorManager) GetSalary() float64 {
+	// 先调用Inherited实现多态
+	if ret, handled := sm.Inherited(); handled {
+		return class.SC[float64](ret[0])
+	}
+	// 高级经理薪资比经理薪资高30%
+	if ret, ok := sm.Super("GetSalary")(); ok {
+		managerSalary := class.SC[float64](ret[0])
+		return managerSalary * 1.3
+	}
+	// 默认情况，使用基础薪资
+	return sm.Salary * 1.95 // 1.5 * 1.3 = 1.95
+}
+
+// Manage 重写父类的Manage方法，实现多态
+func (sm *SeniorManager) Manage() string {
+	// 先调用Inherited实现多态
+	if ret, handled := sm.Inherited(); handled {
+		return class.SC[string](ret[0])
+	}
+	// 调用父类的Manage方法
+	if ret, ok := sm.Super("Manage")(); ok {
+		parentManage := class.SC[string](ret[0])
+		return fmt.Sprintf("%s for the %s department", parentManage, sm.Department)
+	}
+	return fmt.Sprintf("%s is managing the %s department", sm.Name, sm.Department)
+}
+
+// ----------------------------- 示例函数 -----------------------------
+
+// ExamplePolymorphism 演示继承功能
+func ExamplePolymorphism() {
+	fmt.Println("\n=== 继承示例 ===")
+
+	// 创建不同类型的员工实例
+	//employee := New[*Employee]((*IEmployee)(nil))
+	employee := class.Create(NewEmployee(5000) /*,注意：没有限定接口方法*/)
+	employee.Name = "John"
+	//employee.Salary = 5000.0
+
+	//developer := New[*Developer]((*IEmployee)(nil))
+	developer := class.Create(NewDeveloper(5000) /*,注意：没有限定接口方法*/) 
+	developer.Name = "Alice"
+	//developer.Salary = 5000.0
+	developer.ProgrammingLang = "Go"
+
+	manager := class.New[*Manager]((*IEmployee)(nil))
+	manager.Name = "Bob"
+	manager.Salary = 8000.0
+
+	seniorManager := class.New[*SeniorManager]((*IEmployee)(nil))
+	seniorManager.Name = "Charlie"
+	seniorManager.Salary = 8000.0
+	seniorManager.Department = "Engineering"
+
+	// 使用IEmployee接口类型存储不同的实现(多态)
+	//employees := []IEmployee{employee, developer, manager, seniorManager}
+	employees := []*Employee{employee, &developer.Employee, &manager.Employee, &seniorManager.Employee}
+
+	// 多态：不通过接口调用不同实现的方法
+	for _, emp := range employees {
+		fmt.Printf("%s:\n", emp.GetName())
+		fmt.Printf("  Work: %s\n", emp.Work())
+		fmt.Printf("  Salary: %.2f\n", emp.GetSalary())
+		fmt.Println()
+	}
+
+	// 没有绑定(*IManager)(nil)接口方法（参数限定只有(*IEmployee)(nil)接口方法）
+	fmt.Printf("manager %s\n", manager.Manage())
+	fmt.Printf("seniorManager %s\n", seniorManager.Manage())
+}
+
+// ExampleInterfaceBinding 演示接口绑定功能
+func ExampleInterfaceBinding() {
+	fmt.Println("\n=== 接口绑定示例 ===")
+
+	// 创建一个只绑定IEmployee接口的Manager实例
+	managerEmployee := class.New[*Manager]((*IEmployee)(nil))
+	managerEmployee.Name = "Bob"
+	managerEmployee.Salary = 8000.0
+	managerEmployee.TeamSize = 5
+
+	// 测试接口方法
+	fmt.Println("Manager as IEmployee:")
+	fmt.Println("  Work:", managerEmployee.Work())
+	fmt.Println("  Salary:", managerEmployee.GetSalary())
+	fmt.Println("  Name:", managerEmployee.GetName())
+
+	// 创建一个同时绑定IEmployee和IManager接口的Manager实例
+	managerFull := class.New[*Manager]((*IEmployee)(nil), (*IManager)(nil))
+	managerFull.Name = "Bob"
+	managerFull.Salary = 8000.0
+	managerFull.TeamSize = 5
+
+	fmt.Println("\nManager as IManager:")
+	// 这里只能通过managerFull调用IManager接口方法
+	fmt.Println("  Manage:", managerFull.Manage())
+	fmt.Println("  Team Size:", managerFull.GetTeamSize())
+
+	// 创建一个同时绑定IEmployee和IManager接口的SeniorManager实例
+	s_managerFull := class.New[*SeniorManager]((*IEmployee)(nil), (*IManager)(nil))
+	s_managerFull.Name = "Charlie"
+	s_managerFull.Salary = 8000.0
+	s_managerFull.TeamSize = 15
+
+	fmt.Println("\nSeniorManager as IManager:")
+	// 这里只能通过smanagerFull调用IManager接口方法
+	fmt.Println("  Manage:", s_managerFull.Manage())
+	fmt.Println("  Team Size:", s_managerFull.GetTeamSize())
 }
 
 func main() {
-	base := Extends[*BaseObject]("Object", (*ICommon)(nil))
-	child1 := Extends[*InheritedObject1]("BaseObject", (*ICommon)(nil))
-	child2 := New[*InheritedObject2](nil)
+	// 运行多态示例
+	ExamplePolymorphism()
 
-	objects := []IAdd{base, child1, child2}
-	for _, obj := range objects {
-		result := obj.Add(3, 4)
-		fmt.Println("返回值:", result)
-		obj.Dec()
-		fmt.Println("---")
-	}
-
-    obj := Create(&InheritedObject2{Field1: 100})
-	fmt.Println("obj.Add(5,6)=", obj.Add(5, 6))
-	obj.Dec()
-	fmt.Println("---")
-	obj.Super("Dec")()
-	fmt.Println("+++")
-	obj.InheritedObject1.Dec()
+	// 运行接口绑定示例
+	ExampleInterfaceBinding()
 }
 ```

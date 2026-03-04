@@ -1,4 +1,4 @@
-module filelog
+module ninego/filelog
 
 go 1.24.0
 

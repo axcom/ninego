@@ -382,6 +382,7 @@ func ExampleInterfaceBinding() {
 	fmt.Println("\nSeniorManager as IManager:")
 	// 这里只能通过smanagerFull调用IManager接口方法
 	fmt.Println("  Manage:", s_managerFull.Manage())
+	fmt.Println("  Manage:", s_managerFull.Manager.Manage())
 	fmt.Println("  Team Size:", s_managerFull.GetTeamSize())
 }
 

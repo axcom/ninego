@@ -1,4 +1,4 @@
-module expr
+module ninego/expr
 
 go 1.18.0
 

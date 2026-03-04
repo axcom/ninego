@@ -1,4 +1,4 @@
-module ninego/log/logger
+module ninego/log
 
 go 1.18.0
 
